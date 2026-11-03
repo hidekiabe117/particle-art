@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>粒子アート</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #14151a; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: crosshair; }
+  .ui { position: fixed; left: 12px; bottom: 12px; display: flex; gap: 8px; font-family: sans-serif; }
+  button { padding: 8px 14px; border: 1px solid #555; background: #22242c; color: #eee; border-radius: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ui">
+  <button id="mode">モード：はじく</button>
+  <button id="burst">ばらまく</button>
+</div>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const cols = ['#1D9E75', '#7F77DD', '#D85A30'];
+let W, H, ps = [], mx = -999, my = -999, repel = true, t = 0;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function build(n) {
+  const size = Math.min(W, H) * 0.42;
+  ps = [];
+  for (let i = 0; i < n; i++) {
+    ps.push({
+      a: i * 2.39996,
+      r: Math.sqrt(i / n) * size,
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: 0,
+      vy: 0,
+      c: cols[i % 3],
+      s: 1.4 + Math.random() * 1.4
+    });
+  }
+}
+
+function pos(e) {
+  const p = e.touches ? e.touches[0] : e;
+  mx = p.clientX;
+  my = p.clientY;
+}
+
+cv.addEventListener('mousemove', pos);
+cv.addEventListener('touchmove', function (e) { pos(e); e.preventDefault(); }, { passive: false });
+cv.addEventListener('touchstart', pos);
+cv.addEventListener('mouseleave', function () { mx = -999; my = -999; });
+cv.addEventListener('touchend', function () { mx = -999; my = -999; });
+
+document.getElementById('mode').onclick = function () {
+  repel = !repel;
+  this.textContent = 'モード：' + (repel ? 'はじく' : '引き寄せる');
+};
+
+document.getElementById('burst').onclick = function () {
+  ps.forEach(function (p) {
+    const a = Math.random() * 6.2832;
+    const f = 6 + Math.random() * 10;
+    p.vx += Math.cos(a) * f;
+    p.vy += Math.sin(a) * f;
+  });
+};
+
+window.addEventListener('resize', function () { resize(); build(900); });
+
+function loop() {
+  t += 0.004;
+  ctx.clearRect(0, 0, W, H);
+  const cs = Math.cos(t), sn = Math.sin(t);
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i];
+    const bx = Math.cos(p.a) * p.r;
+    const by = Math.sin(p.a) * p.r;
+    const hx = W / 2 + bx * cs - by * sn;
+    const hy = H / 2 + bx * sn + by * cs;
+    p.vx += (hx - p.x) * 0.02;
+    p.vy += (hy - p.y) * 0.02;
+    const dx = p.x - mx, dy = p.y - my;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 120 && d > 0.1) {
+      const f = (1 - d / 120) * (repel ? 3.2 : -1.6);
+      p.vx += dx / d * f;
+      p.vy += dy / d * f;
+    }
+    p.vx *= 0.88;
+    p.vy *= 0.88;
+    p.x += p.vx;
+    p.y += p.vy;
+    ctx.fillStyle = p.c;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.s, 0, 6.2832);
+    ctx.fill();
+  }
+  requestAnimationFrame(loop);
+}
+
+resize();
+build(900);
+loop();
+</script>
+</body>
+</html>
